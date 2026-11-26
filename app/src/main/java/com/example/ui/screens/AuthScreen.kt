@@ -60,6 +60,7 @@ import com.example.localization.AppStrings
 import com.example.localization.BiText
 import com.example.model.LanguageMode
 import com.example.ui.components.LanguageSelectorPills
+import kotlinx.coroutines.delay
 
 @Composable
 fun AuthScreen(
@@ -72,20 +73,17 @@ fun AuthScreen(
     val credentialManager = remember(context) { CredentialManager.create(context) }
 
     var isLoading by remember { mutableStateOf(false) }
-    var isCheckingAutoSignIn by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
+        delay(350)
         attemptAutoSignIn(
             context = context,
             credentialManager = credentialManager,
             onAuthSuccess = {
-                isCheckingAutoSignIn = false
                 onAuthSuccess()
             },
-            onUnauthenticated = {
-                isCheckingAutoSignIn = false
-            },
+            onUnauthenticated = {},
             scope = scope
         )
     }
@@ -224,7 +222,7 @@ fun AuthScreen(
                                     }
                                 )
                             },
-                            enabled = !isLoading && !isCheckingAutoSignIn,
+                            enabled = !isLoading,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(54.dp)
@@ -235,7 +233,7 @@ fun AuthScreen(
                                 contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
-                            if (isLoading || isCheckingAutoSignIn) {
+                            if (isLoading) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(22.dp),
                                     color = MaterialTheme.colorScheme.onPrimary,
