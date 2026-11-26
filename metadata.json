@@ -1,0 +1,6 @@
+{
+  "name": "TailorBook",
+  "description": "Professional Shalwar Kameez tailor measurement management app with bilingual English and Urdu labels, customer profiles, measurement history, PDF receipts, printing, and WhatsApp sharing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

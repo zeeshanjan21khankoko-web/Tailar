@@ -1,0 +1,200 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Hardened Global Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Measurement Sub-object Validator ---
+    function isValidMeasureValue(v) {
+      return v is string && v.size() <= 20;
+    }
+
+    function isValidMeasurement(m) {
+      return m is map &&
+             m.keys().hasAll([
+               'unit',
+               'kameezLength', 'shoulder', 'chest', 'kameezWaist', 'kameezHip',
+               'sleeveLength', 'armhole', 'neck', 'cuff', 'frontLength', 'backLength', 'collar',
+               'shalwarLength', 'shalwarWaist', 'shalwarHip', 'thigh', 'knee', 'bottomPaicha', 'shalwarStyle'
+             ]) &&
+             m.keys().hasOnly([
+               'unit',
+               'kameezLength', 'shoulder', 'chest', 'kameezWaist', 'kameezHip',
+               'sleeveLength', 'armhole', 'neck', 'cuff', 'frontLength', 'backLength', 'collar',
+               'shalwarLength', 'shalwarWaist', 'shalwarHip', 'thigh', 'knee', 'bottomPaicha', 'shalwarStyle'
+             ]) &&
+             m.unit in ['in', 'cm'] &&
+             isValidMeasureValue(m.kameezLength) &&
+             isValidMeasureValue(m.shoulder) &&
+             isValidMeasureValue(m.chest) &&
+             isValidMeasureValue(m.kameezWaist) &&
+             isValidMeasureValue(m.kameezHip) &&
+             isValidMeasureValue(m.sleeveLength) &&
+             isValidMeasureValue(m.armhole) &&
+             isValidMeasureValue(m.neck) &&
+             isValidMeasureValue(m.cuff) &&
+             isValidMeasureValue(m.frontLength) &&
+             isValidMeasureValue(m.backLength) &&
+             isValidMeasureValue(m.collar) &&
+             isValidMeasureValue(m.shalwarLength) &&
+             isValidMeasureValue(m.shalwarWaist) &&
+             isValidMeasureValue(m.shalwarHip) &&
+             isValidMeasureValue(m.thigh) &&
+             isValidMeasureValue(m.knee) &&
+             isValidMeasureValue(m.bottomPaicha) &&
+             m.shalwarStyle is string && m.shalwarStyle.size() <= 60;
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidShopProfile(data, userId) {
+      return data.userId == userId &&
+             data.shopName is string && data.shopName.size() >= 1 && data.shopName.size() <= 100 &&
+             data.shopPhone is string && data.shopPhone.size() <= 25 &&
+             data.shopAddress is string && data.shopAddress.size() <= 250 &&
+             data.preferredUnit in ['in', 'cm'] &&
+             data.preferredLanguage in ['BOTH', 'EN', 'UR'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCustomer(data, userId) {
+      return data.userId == userId &&
+             data.customerCode is string && data.customerCode.size() >= 1 && data.customerCode.size() <= 32 &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 100 &&
+             data.mobileNumber is string && data.mobileNumber.size() >= 4 && data.mobileNumber.size() <= 25 &&
+             data.address is string && data.address.size() <= 250 &&
+             data.measurementDate is string && data.measurementDate.size() >= 1 && data.measurementDate.size() <= 20 &&
+             data.notes is string && data.notes.size() <= 1000 &&
+             isValidMeasurement(data.currentMeasurement) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidHistoryEntry(data, userId, customerId) {
+      return data.userId == userId &&
+             data.customerId == customerId &&
+             data.measurementDate is string && data.measurementDate.size() >= 1 && data.measurementDate.size() <= 20 &&
+             data.notes is string && data.notes.size() <= 1000 &&
+             isValidMeasurement(data.measurement) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // --- 1. Tailor Shop Profile (/users/{userId}) ---
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'shopName', 'shopPhone', 'shopAddress',
+                         'preferredUnit', 'preferredLanguage', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'shopName', 'shopPhone', 'shopAddress',
+                         'preferredUnit', 'preferredLanguage', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidShopProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidShopProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'shopName', 'shopPhone', 'shopAddress',
+                         'preferredUnit', 'preferredLanguage', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // --- 2. Customers Subcollection (/users/{userId}/customers/{customerId}) ---
+      match /customers/{customerId} {
+        allow get: if isOwner(userId) && isValidId(customerId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(customerId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'customerCode', 'fullName', 'mobileNumber',
+                           'address', 'measurementDate', 'notes', 'currentMeasurement',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'customerCode', 'fullName', 'mobileNumber',
+                           'address', 'measurementDate', 'notes', 'currentMeasurement',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidCustomer(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(customerId) &&
+                         isValidCustomer(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'customerCode', 'fullName', 'mobileNumber', 'address',
+                             'measurementDate', 'notes', 'updatedAt'
+                           ]) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'measurementDate', 'notes', 'currentMeasurement', 'updatedAt'
+                           ]) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'customerCode', 'fullName', 'mobileNumber', 'address',
+                             'measurementDate', 'notes', 'currentMeasurement', 'updatedAt'
+                           ])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(customerId);
+
+        // --- 3. Measurement History (/users/{userId}/customers/{customerId}/history/{historyId}) ---
+        match /history/{historyId} {
+          allow get: if isOwner(userId) && isValidId(customerId) && isValidId(historyId);
+          allow list: if isOwner(userId) && isValidId(customerId);
+
+          allow create: if isOwner(userId) &&
+                           isValidId(customerId) &&
+                           isValidId(historyId) &&
+                           incoming().keys().hasAll([
+                             'userId', 'customerId', 'measurementDate', 'notes', 'measurement', 'createdAt'
+                           ]) &&
+                           incoming().keys().hasOnly([
+                             'userId', 'customerId', 'measurementDate', 'notes', 'measurement', 'createdAt'
+                           ]) &&
+                           isValidHistoryEntry(incoming(), userId, customerId) &&
+                           existsAfter(/databases/$(database)/documents/users/$(userId)/customers/$(customerId));
+
+          // History snapshots are immutable audit records
+          allow update: if false;
+
+          allow delete: if isOwner(userId) && isValidId(customerId) && isValidId(historyId);
+        }
+      }
+    }
+  }
+}

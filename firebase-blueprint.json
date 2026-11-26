@@ -1,0 +1,212 @@
+{
+  "entities": {
+    "ShopProfile": {
+      "title": "ShopProfile",
+      "description": "Tailor shop configuration and receipt header profile owned by the signed-in tailor.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the tailor shop owner."
+        },
+        "shopName": {
+          "type": "string",
+          "description": "Tailoring shop display name printed on receipts."
+        },
+        "shopPhone": {
+          "type": "string",
+          "description": "Tailoring shop contact phone number."
+        },
+        "shopAddress": {
+          "type": "string",
+          "description": "Tailoring shop address."
+        },
+        "preferredUnit": {
+          "type": "string",
+          "enum": ["in", "cm"],
+          "description": "Default measurement unit."
+        },
+        "preferredLanguage": {
+          "type": "string",
+          "enum": ["BOTH", "EN", "UR"],
+          "description": "Preferred UI and receipt label language mode."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when shop profile was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when shop profile was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "shopName", "preferredUnit", "preferredLanguage", "createdAt", "updatedAt"]
+    },
+    "ShalwarKameezMeasurement": {
+      "title": "ShalwarKameezMeasurement",
+      "description": "Complete Shalwar Kameez measurement set in inches or centimeters.",
+      "type": "object",
+      "properties": {
+        "unit": { "type": "string", "enum": ["in", "cm"] },
+        "kameezLength": { "type": "string" },
+        "shoulder": { "type": "string" },
+        "chest": { "type": "string" },
+        "kameezWaist": { "type": "string" },
+        "kameezHip": { "type": "string" },
+        "sleeveLength": { "type": "string" },
+        "armhole": { "type": "string" },
+        "neck": { "type": "string" },
+        "cuff": { "type": "string" },
+        "frontLength": { "type": "string" },
+        "backLength": { "type": "string" },
+        "collar": { "type": "string" },
+        "shalwarLength": { "type": "string" },
+        "shalwarWaist": { "type": "string" },
+        "shalwarHip": { "type": "string" },
+        "thigh": { "type": "string" },
+        "knee": { "type": "string" },
+        "bottomPaicha": { "type": "string" },
+        "shalwarStyle": { "type": "string" }
+      },
+      "required": [
+        "unit",
+        "kameezLength",
+        "shoulder",
+        "chest",
+        "kameezWaist",
+        "kameezHip",
+        "sleeveLength",
+        "armhole",
+        "neck",
+        "cuff",
+        "frontLength",
+        "backLength",
+        "collar",
+        "shalwarLength",
+        "shalwarWaist",
+        "shalwarHip",
+        "thigh",
+        "knee",
+        "bottomPaicha",
+        "shalwarStyle"
+      ]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer profile and latest Shalwar Kameez measurements.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner tailor Firebase Auth UID."
+        },
+        "customerCode": {
+          "type": "string",
+          "description": "Unique shop-facing customer identifier (e.g., TB-1001)."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Customer full name."
+        },
+        "mobileNumber": {
+          "type": "string",
+          "description": "Customer mobile number."
+        },
+        "address": {
+          "type": "string",
+          "description": "Customer address."
+        },
+        "measurementDate": {
+          "type": "string",
+          "description": "Date of latest measurement in yyyy-MM-dd format."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional tailoring notes."
+        },
+        "currentMeasurement": {
+          "type": "object",
+          "$ref": "#/entities/ShalwarKameezMeasurement"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when customer was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when customer or measurements were last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "customerCode",
+        "fullName",
+        "mobileNumber",
+        "address",
+        "measurementDate",
+        "notes",
+        "currentMeasurement",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MeasurementHistory": {
+      "title": "MeasurementHistory",
+      "description": "Immutable historical snapshot of a customer's Shalwar Kameez measurements.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner tailor Firebase Auth UID."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Parent customer document ID."
+        },
+        "measurementDate": {
+          "type": "string",
+          "description": "Date of measurement in yyyy-MM-dd format."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes recorded with this measurement version."
+        },
+        "measurement": {
+          "type": "object",
+          "$ref": "#/entities/ShalwarKameezMeasurement"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when snapshot was recorded (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "customerId",
+        "measurementDate",
+        "notes",
+        "measurement",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/ShopProfile" },
+      "description": "Tailor shop profile and preferences scoped by user UID."
+    },
+    "/users/{userId}/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Customer profiles and current Shalwar Kameez measurements for a tailor."
+    },
+    "/users/{userId}/customers/{customerId}/history/{historyId}": {
+      "schema": { "$ref": "#/entities/MeasurementHistory" },
+      "description": "Chronological measurement history snapshots for a customer."
+    }
+  }
+}
